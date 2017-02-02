@@ -1,0 +1,1198 @@
+/**
+ * 	transformation MUSICContextProfleTransformationScript
+ *
+ *	This script transforms the UML model (expressed as eclipse uml2) of context plugins
+ *	built for the use within the MUSIC middleware.
+ *	
+ *	@author:
+ *		Michael Wagner (wagner@vs.uni-kassel.de)
+ *  	Roland Reichle (reichle@vs.uni-kassel.de)
+ *      Nearchos Paspallis (nearchos@gmail.com)
+ *
+ *	@version: 0.3
+ *	@updated on: 08.01.2016 by NP
+ *
+ */
+
+texttransformation MUSICContextPluginTransformation (in inmdl:"http://www.eclipse.org/uml2/2.1.0/UML") {
+	property author:string = "Context Plugin Transformation Tool";
+	property Date:String = date();
+	property Time:String =time();
+    
+  	var contextPluginPackages: List;// List  the context plugin packages
+  	var contextPlugins: Hashtable; 	// Context plugin package vs a list of all available context plugins within the package
+	var contextOperatorsInPackage: Hashtable; 	// Context plugin package vs a list of all available context operators within the package
+	var contextOperators: Hashtable; 	// Context plugin names vs a list of all used context operators for each context plugin
+	var operatorDMCAssociation: Hashtable; 	// Context plugin /operator names vs a list of all associated DMC
+	//var connectedDMCs: Hashtable; 	// operator name vs a list of all DMC names of this operator which are already connected
+	var pluginConnectedDMCs: Hashtable; // Context plugin names vs a a hashtable connectedDMCs (operator name vs a list of all DMC names of this operator which are already connected) 
+	
+	inmdl.Model::main(){
+	
+	stdout.println("Starting Context Plugin Transformation");
+	
+	//Call the collector rules (functions)
+	self.storeContextPlugins();
+	self.storeOperatorDMCAssociation();
+	
+	
+	
+	//Create java file for each context plugin
+	contextPluginPackages->forEach(package:inmdl.Package){
+		var pluginList:List;	  
+		pluginList.addAll(contextPlugins.get(package.name));	  
+	  
+	  	pluginList->forEach(plugin:inmdl.Class){
+			stdout.println("Start transformation for contextplugin: " + plugin.name);	  	  
+			
+			var packagePath:String = package.name;	  	  
+	  	    
+	  	    while (packagePath.indexOf(".") != -1){
+	  	       var i : Integer = packagePath.indexOf(".");
+	  	       packagePath = packagePath.substring(0,i) + "\\"+ packagePath.substring(i+1,packagePath.size());
+	  	     }
+	  	    
+	  	    file(plugin.name+"\\src\\" +packagePath+"\\"+plugin.name+"Metadata.java"); // a metada file is created in the default directory set in MOFScript preferences
+	  		stdout.println("\tGenerated metadata.java file for plugin "+plugin.name);
+    		self.createMetadataFile(package.name, plugin.name, operatorDMCAssociation.get(plugin.name));
+    		
+	  		file(plugin.name+"\\src\\" +packagePath+"\\"+plugin.name+".java"); // a file is created in the default directory set in MOFScript preferences
+	  		stdout.println("\tGenerated file for plugin "+plugin.name);
+    		self.generatePlugin(package.name, plugin);
+    		
+    		file(plugin.name+"\\MANIFEST.MF");
+    		stdout.println("\tGenerated manifest file for plugin "+plugin.name);
+    		self.createManifestFile(package.name, plugin);
+    		
+    		file(plugin.name+"\\resources\\OSGI-INF\\"+plugin.name+".xml");
+    		stdout.println("\tGenerated OSGI XML file for plugin "+plugin.name);
+    		self.createXMLFile(packagePath, package.name, plugin)
+    		
+    		file(plugin.name+"\\build.xml");
+    		stdout.println("\tGenerated build file for plugin "+plugin.name);
+    		self.createBuildFile(package.name, plugin);
+	  	}
+					
+	 }
+	    			
+	stdout.println("Finishing Context Plugin Transformation");
+	  
+ 	} // end main
+
+/*
+/************************************************************************/
+/****           RULES FOR STORING MODEL INFORMATION                  ****/
+/************************************************************************/
+
+/**
+ * Find all the context plugins and context operators for each of the context plugins. Store the result 
+ * in a hash table with the plugin name as the keys. 
+ */   
+	
+	inmdl.Model::storeContextPlugins(){
+		self.ownedMember->forEach(root:inmdl.Package){
+		   root.ownedElement->forEach(cpPack:inmdl.Package | cpPack.hasStereotype("mContextPlugin")){
+	  	  		var pluginList: List;
+	  	  		var operatorList: List;
+	  	  		var duplicateFound: Boolean = false;
+	    		contextPluginPackages->forEach(package:inmdl.Package){
+	    			if (cpPack.name.trim() == package.name.trim()){
+	      					duplicateFound = true;
+	      			}
+	    		}
+	    		if (!duplicateFound){
+			    	contextPluginPackages.add(cpPack);
+			    	stdout.println("\n\n\tNew ContextPluginPackage: "+ cpPack.name);
+			    }
+			    
+			    duplicateFound = false;
+			    
+	  	  		cpPack.ownedElement->forEach(conPlug:inmdl.Class | conPlug.hasStereotype("mContextPlugin")){
+	  	  		  	var operatorPluginList: List;	  	  			
+	  	  			var contextPluginName: String = conPlug.name;
+	  	  			var duplicateFound: Boolean = false;
+	    			pluginList->forEach(plugin:inmdl.Class){
+	    				if (contextPluginName.trim() == plugin.name.trim()){
+	      					duplicateFound = true;
+	      				}
+	    			}
+	    			if (!duplicateFound){
+			    		pluginList.add(conPlug);
+			    		stdout.println("\tNew ContextPlugin: " + conPlug.name );
+			    	}
+	    			duplicateFound = false;
+	  	  			
+	  	  			conPlug.ownedElement->forEach(conOp:inmdl.Property | conOp.hasStereotype("mContextOperator") or conOp.hasStereotype("mGenericOperator") or conOp.hasStereotype("mUserDefinedOperator")){
+	  	  				stdout.println("\t\t"+conPlug.name + " uses the operator " + conOp.name);
+	  	  				var duplicateFound: Boolean = false;
+	    				operatorPluginList->forEach(op:inmdl.Property){
+	    					if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				operatorPluginList->forEach(op:inmdl.Class){
+	    				  	if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				if (!duplicateFound){
+			    			operatorPluginList.add(conOp);
+			    			stdout.println("\tNew ContextOperator used by plugin " + conPlug.name +": " + conOp.name);
+			    		}
+			    		duplicateFound = false;
+	    				operatorList->forEach(op:inmdl.Property){
+	    					if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				operatorList->forEach(op:inmdl.Class){
+	    				  	if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				if (!duplicateFound){
+			    			operatorList.add(conOp);
+			    			stdout.println("\tNew ContextOperator: " + conOp.name);
+			    		}	
+	    				duplicateFound = false;
+	  	  			} // end "for each contextOperator of a contextPlugin"
+	  	  			
+	  	  			conPlug.ownedElement->forEach(conOp:inmdl.Class | conOp.hasStereotype("mContextOperator") or conOp.hasStereotype("mGenericOperator") or conOp.hasStereotype("mUserDefinedOperator")){
+	  	  				stdout.println("\t\t"+conPlug.name + " uses the operator " + conOp.name);
+	  	  				var duplicateFound: Boolean = false;
+	    				operatorPluginList->forEach(op:inmdl.Property){
+	    					if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				operatorPluginList->forEach(op:inmdl.Class){
+	    				  	if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				if (!duplicateFound){
+			    			operatorPluginList.add(conOp);
+			    			//stdout.println("\tNew ContextOperator used by plugin " + conPlug.name +": " + conOp.name);
+			    		}	
+	    				duplicateFound = false;
+	  	  				operatorList->forEach(op:inmdl.Property){
+	    					if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				operatorList->forEach(op:inmdl.Class){
+	    				  	if (conOp.name.trim() == op.name.trim()){
+	      						duplicateFound = true;
+	      					}
+	    				}
+	    				if (!duplicateFound){
+			    			operatorList.add(conOp);
+			    			stdout.println("\tNew ContextOperator: " + conOp.name);
+			    		}  
+	  	  			} // end "for each contextOperator of a contextPlugin"
+	  	  			
+	  	  			if (operatorPluginList.size() > 0){
+	  	  				contextOperators.put(conPlug.name, operatorPluginList);
+	  	  				//stdout.println("#cOP: "+contextOperators.size());
+	  	  			} else {
+	  	  			  	// a context plugin must have at least one operator
+	  	  			  	pluginList.remove(conPlug);
+	  	  			}  	
+	  	  			
+	  	  		} //end "for each contextPlugin of a package"
+	  	  		
+	  	  		contextPlugins.put(cpPack.name, pluginList);
+	  	  		contextOperatorsInPackage.put(cpPack.name, operatorList);
+	  	  		
+	  		} //end "for each contextPluginPackage"
+	  	
+	  	}
+	} // end storeContextPlugin
+
+
+/**
+ * Each plugin and operator is associated with several input DMCs and one output DMC. 
+ * This rule stores the different DMCs for each plugin and for each operator in a list. 
+ * This info is stored in a hashtable as plugin name/operator name beeing the key and the
+ * list of DMCs beeing the value. Additionally, the rule checks if every plugin and every 
+ * operator has at least one associated outputDMC. Otherwise the model is uncomplete.
+ */
+  inmdl.Model::storeOperatorDMCAssociation(){
+  	var Operator: inmdl.Class;
+    var DMC: inmdl.Class;
+    var operatorExist:Boolean = false;
+    var DMCExist:Boolean = false;   
+    var pluginList: List;
+    var operatorList: List;
+    
+    self.ownedMember->forEach(root:inmdl.Package){
+      	root.ownedElement->forEach(p:inmdl.Package | p.hasStereotype("mContextPlugin")){
+      		  
+      		pluginList.addAll(contextPlugins.get(p.name));
+      		operatorList.addAll(contextOperatorsInPackage.get(p.name));
+      	  	pluginList->forEach(plugin:inmdl.Class){
+      	    	stdout.println("Package contains plugin: " + plugin.name);
+      	  	}
+      	  	operatorList->forEach(operator:inmdl.Class){
+      	  	  	stdout.println("Package contains operator: " + operator.name);
+      	  	}
+      	  	
+      	  	operatorList->forEach(operator:inmdl.Property){
+      	  	  	stdout.println("Package contains operator: " + operator.name);
+      	  	}
+      	  	
+      	  
+        	p.ownedMember->forEach(as:inmdl.Association){
+    		  	as.relatedElement->forEach(re:inmdl.Class){
+    		  	  	if (re.hasStereotype("mSimpleInputDMC") or re.hasStereotype("mComplexInputDMC") or re.hasStereotype("mInputDMC") or re.hasStereotype("mDMC") or re.hasStereotype("mOutputDMC")){
+    		  	  		DMC = re;
+    		  	  		DMCExist = true;
+    		  	  	}
+    		  	  	if (re.hasStereotype("mContextPlugin") or re.hasStereotype("mContextOperator") or re.hasStereotype("mGenericOperator") or re.hasStereotype("mUserDefinedOperator")){
+    		  	  		Operator = re;
+    		  	  		operatorExist = true;
+    		  	  	}
+    		  	  	
+    		  	} //end for each related element of an association
+    		  	
+    		  	operatorList->forEach(op:inmdl.Class){
+      	  	  		if (Operator.name == op.name) {
+      	  	  		  	operatorList.remove(op);
+      	  	  		}
+      	  		}
+      	  		
+      	  		operatorList->forEach(op:inmdl.Property){
+      	  	  		if (Operator.name == op.name) {
+      	  	  		  	operatorList.remove(op);
+      	  	  		}
+      	  	  	}
+      	  	  	
+      	  	  	pluginList->forEach(plugin:inmdl.Class){
+      	  	  		if (Operator.name == plugin.name) {
+      	  	  		  	pluginList.remove(plugin);
+      	  	  		}
+      	  	  	}
+      	  	
+    		  	if (operatorExist and DMCExist){
+      	  			if (operatorDMCAssociation.get(Operator.name) = null){
+      	  				var tempList : List;
+      	  				tempList.add(DMC);
+      	  				operatorDMCAssociation.put(Operator.name, tempList);     	  			  	
+      	  			} else {
+      	  			  	var tempList : List = operatorDMCAssociation.get(Operator.name);
+      	  			  	tempList.add(DMC);
+      	  			  	operatorDMCAssociation.put(Operator.name, tempList);
+      	  			}
+      			}
+      			DMCExist = false;
+      			operatorExist =false;
+    		  	
+    		  	
+    	 }// end for each Association
+    	 
+    	 if (!operatorList.isEmpty()){
+    	 	operatorList->forEach(op:inmdl.Class){
+      	  	  		stdout.println("The operator " + op.name + " has no associated DMC. Please correct this in the model");
+      	  		}
+      	  		
+      	  		operatorList->forEach(op:inmdl.Property){
+      	  	  		stdout.println("The operator " + op.name + " has no associated DMC. Please correct this in the model");
+      	  	  	}
+    	 }
+    	 if (!pluginList.isEmpty()){
+    	 	pluginList->forEach(plugin:inmdl.Class){
+      	  	  		stdout.println("The plugin" + plugin.name + " has no associated DMC. Please correct this in the model");
+      	  		}
+    	 }
+    	 
+      	}//end for each contextPluginPackage
+    } // end for each Package
+	} //end storeOperatorDMCAssociation
+
+/************************************************************************/
+/****           RULES FOR GENERATING SOURCE CODE                     ****/
+/************************************************************************/
+  
+  /**
+   * This rule creates the file hearder consisting of some information on
+   * the MUSIC project, the  packages that are needed to be
+   * imported and the start of the class extending the the MDDContextReasonerPlugin class.
+   * 
+   * @param packageName: string with the package name of the context package
+   * @param plugin: Class of the context plugin 
+   */
+  inmdl.Model::generatePlugin(packageName:String, plugin:inmdl.Class){
+ 
+ 	var contextPluginName : String = plugin.name;
+ 	var operators : List = contextOperators.get(plugin.name);
+    var pluginDMCs : List = operatorDMCAssociation.get(plugin.name);
+ 
+ 
+ <%/**
+ * The MUSIC project (Contract No. IST-035166) is an Integrated Project (IP) 
+ * within the 6th Framework Programme, Priority 2.5.5 (Software and Services).
+ *
+ * More information about the project is available at: http://www.ist-music.eu
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General
+ * Public License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+ * Boston, MA 02111-1307 USA
+ */
+
+// TODO: package name generation/checking
+package %>packageName<%;
+
+import org.istmusic.mdd.plugins.MDDContextReasonerPlugin;
+import org.istmusic.mdd.dmcs.DMC;
+import org.istmusic.mdd.dmcs.DMCFactory;
+import org.istmusic.mdd.dmcs.DMC_Element;
+import org.istmusic.mdd.dmcs.DMCFullException;
+import org.istmusic.mw.context.plugins.IContextPlugin;
+
+import org.istmusic.mw.context.events.ContextChangedEvent;
+import org.istmusic.mw.context.model.api.EntityScopePair;
+import org.istmusic.mw.context.model.api.IEntity;
+import org.istmusic.mw.context.model.api.IScope;
+import org.istmusic.mw.context.model.api.IRepresentation;
+import org.istmusic.mw.context.model.impl.Factory;
+import org.istmusic.mw.context.model.api.IContextElement;
+import org.istmusic.mw.context.model.api.IContextDataset;
+import org.istmusic.mw.context.model.impl.ContextValueMap;
+import org.istmusic.mw.context.model.impl.MetadataMap;
+import org.istmusic.mw.context.model.api.IContextValue;
+
+import java.util.HashMap;
+import org.istmusic.mdd.operators.Operator;
+
+//These imports are added by the MDD - some of them are added through inspecting the ontology and the
+//grounding of some data types
+// TODO: Add additional imports for the grounding
+%>
+
+operators->forEach(op:inmdl.Property){
+	  		<%import org.istmusic.mdd.operators.%>op.name<%;%>
+	  	}
+operators->forEach(op:inmdl.Class){
+	  		<%import org.istmusic.mdd.operators.%>op.name<%;%>
+	  	}	  	
+  
+<%
+
+/**
+ * This class implements the context plugin %> contextPluginName <% 
+ * <p/>
+ * Date: %> Date <%
+ * Time: %> Time <%   
+ * 
+ * @author %> author <%   
+ */
+
+public class %>contextPluginName <% extends MDDContextReasonerPlugin
+{
+
+	
+    public static final String PLUGIN_ID = "%>contextPluginName<%";
+
+    public static final %>contextPluginName<%Metadata %>contextPluginName<%_METADATA =
+            new %>contextPluginName<%Metadata();
+
+	//create operators
+%>             
+    
+    operators->forEach(op:inmdl.Property){
+    <%
+    protected static final Operator Op_%>op.name<% = new %>op.name<%();
+    %>  	
+    }
+    operators->forEach(op:inmdl.Class){
+    <%
+    protected static final Operator Op_%>op.name<% = new %>op.name<%();
+    %>  	
+    }           
+    
+    
+    <%
+    //TODO: parameterize operator	
+    
+   
+    
+    //TODO: Check if problems arise from different TTL semantics in a DMC chain
+   
+    //create DMCs 
+    %>
+    // Context plugin DMCs
+    pluginDMCs->forEach(DMC:inmdl.Class){
+     	 	var DMCsize: String;
+     	 	var TTL : String;
+     	 	DMC.ownedAttribute->forEach(att:inmdl.Property){
+     	 		if (att.name = "size") {
+     	 		  	if (att.default = "1") {
+     	 		  		DMCsize = "1";
+     	 		  	} else {
+     	 		  	  	DMCsize = ' 'self.getQualifiedValueString(att.default);
+     	 		  	}
+     	 		} //end if attribute = size
+     	 		if (att.name = "TTL"){
+     	 		  	if (att.default = "-1"){
+     	 		  	  	TTL = "DMC.LIVE_FOREVER";
+     	 		  	} else {
+     	 		  	 	TTL = ' 'self.getQualifiedValueString(att.default+"L").replace("Integer","Long");
+     	 		  	}
+     	 		} //end if attribute = TTL
+     	 	}//end for each attribute of a DMC
+     	 	
+     	 	if (DMCsize = "1") {
+	<%
+	protected static final DMC %>contextPluginName+DMC.name<% = DMCFactory.createDMC_SingleElement(%>TTL<%);%>
+     	 	} else {
+	<%
+	protected static final DMC %>contextPluginName+DMC.name<% = DMCFactory.createDMC_Queue(%>DMCsize<%, %>TTL<%);%>
+     	 	}
+    } //end for each DMC
+    
+    // Operator DMCs
+    operators->forEach(op:inmdl.Property){
+      	operatorDMCAssociation.get(op.name)->forEach(opDMC:inmdl.Class){
+      		var DMCsize: String;
+     	 	var TTL : String;
+     	 	opDMC.ownedAttribute->forEach(att:inmdl.Property){
+     	 		if (att.name = "size") {
+     	 		  	if (att.default = "1") {
+     	 		  		DMCsize = "1";
+     	 		  	} else {
+     	 		  	  	DMCsize = self.getQualifiedValueString(att.default);
+     	 		  	}
+     	 		} //end if attribute = size
+     	 		if (att.name = "TTL"){
+     	 		  	if (att.default = "-1"){
+     	 		  	  	TTL = "DMC.LIVE_FOREVER";
+     	 		  	} else {
+     	 		  	 	TTL = self.getQualifiedValueString(att.default).replace("Integer","Long");
+     	 		  	}
+     	 		} //end if attribute = TTL
+     	 	}//end for each attribute of a DMC
+     	 	
+     	 	if (DMCsize = "1") {
+	<%
+	protected static final DMC %>op.name+opDMC.name<% = DMCFactory.createDMC_SingleElement(%>TTL<%);%>
+     	 	} else {
+	<%
+	protected static final DMC %>op.name+opDMC.name<% = DMCFactory.createDMC_Queue(%>DMCsize<%, %>TTL<%);%>
+     	 	}
+    	} //end for each DMC
+     } //end for each operator (modelled as part/property)
+     
+     operators->forEach(op:inmdl.Class){
+      	operatorDMCAssociation.get(op.name)->forEach(opDMC:inmdl.Class){
+      		var DMCsize: String;
+     	 	var TTL : String;
+     	 	opDMC.ownedAttribute->forEach(att:inmdl.Property){
+     	 		if (att.name = "size") {
+     	 		  	if (att.default = "1") {
+     	 		  		DMCsize = "1";
+     	 		  	} else {
+     	 		  	  	DMCsize = self.getQualifiedValueString(att.default);
+     	 		  	}
+     	 		} //end if attribute = size
+     	 		if (att.name = "TTL"){
+     	 		  	if (att.default = "-1"){
+     	 		  	  	TTL = "DMC.LIVE_FOREVER";
+     	 		  	} else {
+     	 		  	 	TTL = self.getQualifiedValueString(att.default).replace("Integer","Long");
+     	 		  	}
+     	 		} //end if attribute = TTL
+     	 	}//end for each attribute of a DMC
+     	 	
+     	 	if (DMCsize = "1") {
+	<%
+	protected static final DMC %>op.name+opDMC.name<% = DMCFactory.createDMC_SingleElement(%>TTL<%);%>
+     	 	} else {
+	<%
+	protected static final DMC %>op.name+opDMC.name<% = DMCFactory.createDMC_Queue(%>DMCsize<%, %>TTL<%);%>
+     	 	}
+    	} //end for each DMC
+     } //end for each operator (modelled as class)
+
+	<%
+	
+	private static HashMap entityScopePairToDMCMap = new HashMap();    
+    {%>
+    pluginDMCs->forEach(DMC:inmdl.Class | DMC.hasStereotype("mSimpleInputDMC")){
+    	<%
+    	entityScopePairToDMCMap.put(%>contextPluginName<%Metadata.Input_%>DMC.name<%_ENTITY_SCOPE_PAIR, %>contextPluginName+DMC.name<%);
+    	%>
+    }
+	<%
+    }
+	%>
+
+	<%
+	public %>contextPluginName<%()
+    {
+        super(PLUGIN_ID, %>contextPluginName<%_METADATA, 1000L, 1000L);
+    }
+   %>
+    
+	//To be generated for event triggered context plugins 
+	var TriggeredByChange : Boolean = false;
+	var Trigger : String;
+	
+	// the model contains several (at least 2 classes) which contain different information about the plugin. the most important information
+	// are stored in the class which is stored in the object given by the input parameter of this method
+	
+	self.ownedMember->forEach(root:inmdl.Package){
+		   root.ownedElement->forEach(cpPack:inmdl.Package | cpPack.hasStereotype("mContextPlugin")){
+	  	  		cpPack.ownedElement->forEach(conPlug:inmdl.Class | conPlug.hasStereotype("mContextPlugin") and conPlug.name.equals(plugin.name)){
+	  	  		  	conPlug.ownedAttribute->forEach(att:inmdl.Property){
+	  					if (att.name = "triggerType"){
+	     					if (att.default.trim() = "OnChange"){
+	     	 	  				TriggeredByChange = true;
+	     					} 
+	     				} //end if attribute = triggerType
+	     				if (att.name = "triggerValue"){
+	     	  				Trigger = att.default;	
+	     				}//end if attribute = triggerValues
+					}//end for all properties of the plugin
+	  	  		} //end for all plugins in the package with stereotype mContextPlugin and with name like the handled plugin
+		   } //end for context package
+	} //end for all packages in the model
+	
+<%
+	public boolean checkDMCTriggerStatus(){	%>
+	
+	if (TriggeredByChange){
+	  	var triggerDMC : String = Trigger.substringBefore(".");
+	  	var triggerType : String = Trigger.substringAfter(".");
+	  	//stdout.println("TriggerDMC: "+triggerDMC+" triggerType: "+triggerType);
+
+	// check if DMC which should trigger the plugin exists
+		var DMCexist : Boolean = false
+		pluginDMCs->forEach(DMC:inmdl.Class){
+		  	if (DMC.name = triggerDMC){
+				DMCexist = true;
+		  	}
+		} //end for all DMCs of the plugin
+		
+		if (DMCexist){
+
+    	<%
+   		if(%>contextPluginName+triggerDMC<%.getStatusAndReset() == DMC.STATUS_CHANGED)
+	   		return true;%>
+ 
+		  	
+		} else {
+		  	stdout.println("\t\t\tERROR in triggerValue for the context plugin '"+contextPluginName+"': reffered DMC '"+triggerDMC+"' doesn't exist!");
+		}
+
+	}
+	  <% 	
+	  		return false; %>
+   	 //end if triggeredbychange
+<%
+	}
+	
+	public void contextChanged(ContextChangedEvent event)
+    {
+            final IContextElement [] contextElements = event.getContextDataset().getContextElements();
+            for(int i = 0; i < contextElements.length; i++)
+            {
+                final IContextElement contextElement = contextElements[i];
+                final EntityScopePair entityScopePair = new EntityScopePair(
+                        contextElement.getEntity(), contextElement.getScope());
+
+                DMC_Element element = DMCFactory.createDMC_Element(contextElement, -1L);
+
+                DMC curr_DMC = (DMC) entityScopePairToDMCMap.get(entityScopePair);
+                
+                if(curr_DMC != null){
+                	try{
+                		curr_DMC.insert(element);
+                	}
+            		catch(DMCFullException e) {
+            			System.out.println("Could not insert element into DMC!");
+            			System.out.println("DMC reported " + e);
+            		}
+                }
+                   
+            }
+            this.checkEventTriggering();
+    }
+	%>
+
+	<%
+	public void compute(){
+	%>
+	
+	plugin.ownedElement->forEach(port:inmdl.Port | port.hasStereotype("mInputDMC") or port.hasStereotype("mSimpleInputDMC") or port.hasStereotype("mComplexInputDMC")){
+	  	stdout.println("\tPlugin has input port: " + port.name);
+	  	self.connectPort(plugin, port);
+	} //end for all inputdmcs of plugin
+	
+	self.connectPlugin(plugin);
+	
+	<%
+    	this.checkEventTriggering();
+    	
+    }
+	
+	//TODO: Complete the generated skeletons of the mediators
+	
+	%>
+	
+	plugin.ownedElement->forEach(con:inmdl.Connector){
+	    var port1: inmdl.Port;
+	    var port2: inmdl.Port;
+	    var portOwnerRole1: inmdl.Property;
+	    var portOwnerRole2: inmdl.Property;
+	          
+    	port1 = con.end.first().role;
+        port2 = con.end.last().role;
+        portOwnerRole1 = port1.owner;
+        portOwnerRole2 = port2.owner;
+	    	
+	    stdout.println("\tMediator: "+port1.name+"@"+portOwnerRole1.name+" --> "+port2.name+"@"+portOwnerRole2.name);
+ 		con.ownedComment->forEach(att:inmdl.Comment | att.hasStereotype("mContextMediation")){
+<%    	
+		\n\n\t\t\t/* TODO: Translate the pseuducode to source code
+        \n\t\t\t%>att.body<%
+        \n\t\t\t*/
+%>
+    	}
+    	
+<%	
+		   
+    private static class %>portOwnerRole1.name+port1.name<%_to_%>portOwnerRole2.name+port2.name<%_Mediator{
+   
+    	//TODO: To be completed....
+    	private static IScope Scope_From_ContextValue_0 = Factory.createScope("");
+    	
+    	public static void mediate(final DMC fromDC, final DMC toDMC){
+    		
+    		IContextElement fromElement = (IContextElement) fromDC.get(0);
+    		
+    		//TODO: toElement must specified and be adjusted to the needs of the Operator (see comment above)
+    		//TO BE REMOVED IN FINAL TRANSFORMATION SCRIPT! Example: BufferedImage toElement = (BufferedImage) fromElement.getContextData().getValue(Scope_From_ContextValue_0); 
+    		
+    		try {
+    			toDMC.insert(DMCFactory.createDMC_Element(toElement, -1L));
+    		}
+    		catch(DMCFullException e) {
+    			System.out.println("Could not insert element into DMC!");
+    			System.out.println("DMC reported " + e);
+    		}
+    		
+    	}
+    	
+    }
+	%>
+	
+	} // end for all connectors (generate mediator)
+	
+<%}%>	
+    
+  } // end generatePlugin
+
+
+
+
+/**
+   * This rule creates the metadata file for a context plugin
+   * 
+   * @param contextPluginName:String  The name of the context plugin
+   * @param DMCs:List The list of associated DMCs 
+   */
+  inmdl.Model::createMetadataFile(packageName:String, contextPluginName:String, DMCs:List){
+ <%/**
+ * The MUSIC project (Contract No. IST-035166) is an Integrated Project (IP) 
+ * within the 6th Framework Programme, Priority 2.5.5 (Software and Services).
+ *
+ * More information about the project is available at: http://www.ist-music.eu
+ *
+ * This library is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 2.1 of the License, or (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General
+ * Public License along with this library; if not, write to the
+ * Free Software Foundation, Inc., 59 Temple Place, Suite 330,
+ * Boston, MA 02111-1307 USA
+ */
+
+// TODO: package name generation/checking
+package %>packageName<%;
+
+import org.istmusic.mw.context.plugins.IPluginMetadata;
+import org.istmusic.mw.context.model.api.EntityScopePair;
+import org.istmusic.mw.context.model.api.IEntity;
+import org.istmusic.mw.context.model.api.IScope;
+import org.istmusic.mw.context.model.api.IRepresentation;
+import org.istmusic.mw.context.model.impl.Factory;
+
+
+/**
+ * This class encapsulates the metadata of the context plugin %> contextPluginName <% 
+ * <p/>
+ * Date: %> Date <%
+ * Time: %> Time <%   
+ * 
+ * @author %> author <%   
+ */
+
+public class %>contextPluginName<%Metadata implements IPluginMetadata
+{
+    // required
+    %>
+    
+    var EntityScopePair : String;
+    
+    DMCs->forEach(inputDMC:inmdl.Class | inputDMC.hasStereotype("mSimpleInputDMC")){
+     	inputDMC.ownedAttribute->forEach(att:inmdl.Property){
+     	  	if ((att.name = "Entity")or(att.name = "Scope")or(att.name = "Representation")){
+     	  		if (att.default.toLower().startsWith("http://") or att.default.toLower().startsWith("#")){
+     	 			if (att.name = "Entity"){
+<%	public static final IEntity Input_%>inputDMC.name<%_ENTITY = Factory.createEntity("%>att.default<%"); 
+%> 	
+     	 			} else if (att.name = "Scope"){
+<%	public static final IScope Input_%>inputDMC.name<%_SCOPE = Factory.createScope("%>att.default<%"); 
+%> 	
+     	 			} else if (att.name = "Representation"){
+<%	public static final IRepresentation Input_%>inputDMC.name<%_REPRESENTATION = Factory.createRepresentation("%>att.default<%"); 
+%> 	
+     	 			}
+				} else {
+				  stdout.println("\n\t\tPROBLEM: Check if all references to the ontology start with 'http://' or '#': "+att.default+"\n");
+				}
+			}	
+     	} //end for each property of DMC
+<%	public static final EntityScopePair Input_%>inputDMC.name<%_ENTITY_SCOPE_PAIR = new EntityScopePair(Input_%>inputDMC.name<%_ENTITY, Input_%>inputDMC.name<%_SCOPE); 
+
+%> 
+    	if (EntityScopePair = null){
+    	  	EntityScopePair = "Input_"+inputDMC.name+"_ENTITY_SCOPE_PAIR";
+    	} else {
+    		EntityScopePair = EntityScopePair+", Input_"+inputDMC.name+"_ENTITY_SCOPE_PAIR";
+    	}
+    } //end for each DMC
+
+    <%
+       
+    public static final EntityScopePair [] REQUIRED_ENTITY_SCOPE_PAIRS = {%>EntityScopePair<%};
+    
+    // provided
+    %>
+    
+    var EntityScopePair : String;
+    DMCs->forEach(outputDMC:inmdl.Class | outputDMC.hasStereotype("mOutputDMC")){
+     	outputDMC.ownedAttribute->forEach(att:inmdl.Property){
+     	  	if ((att.name = "Entity")or(att.name = "Scope")or(att.name = "Representation")){
+     	  		if (att.default.toLower().startsWith("http://") or att.default.toLower().startsWith("#")){
+     	 			if (att.name = "Entity"){
+<%	public static final IEntity Output_%>outputDMC.name<%_ENTITY = Factory.createEntity("%>att.default<%"); 
+%> 	
+     	 			} else if (att.name = "Scope"){
+<%	public static final IScope Output_%>outputDMC.name<%_SCOPE = Factory.createScope("%>att.default<%"); 
+%> 	
+     	 			} else if (att.name = "Representation"){
+<%	public static final IRepresentation Output_%>outputDMC.name<%_REPRESENTATION = Factory.createRepresentation("%>att.default<%"); 
+%> 	
+	     	 		}
+	     	 	} else {
+				  stdout.println("\n\t\tPROBLEM: Check if all references to the ontology start with 'http://' or '#': "+att.default+"\n");
+				}
+			}
+     	} //end for each property of DMC
+<%	public static final EntityScopePair Output_%>outputDMC.name<%_ENTITY_SCOPE_PAIR = new EntityScopePair(Output_%>outputDMC.name<%_ENTITY, Output_%>outputDMC.name<%_SCOPE); 
+
+%> 
+    	if (EntityScopePair = null){
+    	  	EntityScopePair = "Output_"+outputDMC.name+"_ENTITY_SCOPE_PAIR";
+    	} else {
+    		EntityScopePair = EntityScopePair+", Output_"+outputDMC.name+"_ENTITY_SCOPE_PAIR";
+    	}
+    } //end for each DMC
+    
+    <%
+
+	public static final EntityScopePair [] MONITORED_ENTITY_SCOPE_PAIRS = {%>EntityScopePair<%};
+      
+    public EntityScopePair [] getRequiredEntityScopePairs()
+    {
+        return REQUIRED_ENTITY_SCOPE_PAIRS;
+    }
+
+    public EntityScopePair [] getMonitoredEntityScopePairs()
+    {
+        return MONITORED_ENTITY_SCOPE_PAIRS;
+    }
+}
+
+%>
+    
+  } // end createMetadataFile
+
+
+/**
+ * This methods connects the specified port by searching for a connector within the specified plugin with the port as its starting point.
+ * 
+ * @param plugin:inmdl.Class    Plugin in which the connection should be
+ * @param port:inmdl.Port		Port to be connected
+*/
+
+
+  inmdl.Model::connectPort(plugin:inmdl.Class, port:inmdl.Port){
+
+		//stdout.println("Trying to connect port " + port.name + " of plugin " + plugin.name);
+						
+		var connectedDMCs: Hashtable; 	// operator name vs a list of all DMC names of this operator which are already connected
+		
+		
+		var pluginConnectors: List;
+		plugin.ownedElement->forEach(con:inmdl.Connector){
+			  	pluginConnectors.add(con);
+		}
+		
+		pluginConnectors->forEach(con:inmdl.Connector | con.end.first().role == port or con.end.last().role == port){
+		 
+		//plugin.ownedElement->forEach(con:inmdl.Connector | con!=null and (con.end.first().role == port or con.end.last().role == port)){
+	    	var port1: inmdl.Port;
+	        var port2: inmdl.Port;
+	        var portOwnerRole1: inmdl.Class;
+	        var portOwnerRole2: inmdl.Class;
+	         
+	    	port1 = con.end.first().role;
+	        port2 = con.end.last().role;
+	        portOwnerRole1 = port1.owner;
+	        portOwnerRole2 = port2.owner;
+	    	//if (port1.name == port.name or port2.name == port.name){
+	    	stdout.println("\t"+port1.name+"@"+portOwnerRole1.name+" --> "+port2.name+"@"+portOwnerRole2.name);
+<%
+			%>portOwnerRole1.name+port1.name<%_to_%>portOwnerRole2.name+port2.name<%_Mediator.mediate(%>portOwnerRole1.name+port1.name<%, %>portOwnerRole2.name+port2.name<%);
+%>
+			
+  			var tempList : List;
+  			if (connectedDMCs.get(portOwnerRole2) = null){
+  				tempList.add(port2);
+  				connectedDMCs.put(portOwnerRole2, tempList);
+  				//stdout.println("\tportOwnerRole2.type = " + portOwnerRole2.oclGetType()) 
+  			} else {
+  		  		tempList.addAll(connectedDMCs.get(portOwnerRole2));
+  		  		tempList.add(port2);
+  				connectedDMCs.put(portOwnerRole2, tempList); 
+  			}
+	//	}		
+  		  	 
+    	} //end for all connectors with port = inputdmc
+    	
+    	var temp: Hashtable;
+    	if (pluginConnectedDMCs.get(plugin.name) = null){
+    	    pluginConnectedDMCs.put(plugin.name, connectedDMCs);    	    
+    	} else {
+    	 	temp = pluginConnectedDMCs.get(plugin.name);
+    	 	connectedDMCs.keys()->forEach(portOwner:inmdl.Property){
+    	 	  	temp.put(portOwner, connectedDMCs.get(portOwner));
+    	 	  	
+    	 	}
+    	 	pluginConnectedDMCs.put(plugin.name,temp); 	
+    	}
+    	
+    	
+	}//end connect(port)
+
+/**
+ * This methods connects operators within the plugin which have an input connection to another dmc
+ * 
+ * @param plugin:inmdl.Class    Plugin in which the connection should be
+ * @param port:inmdl.Port		Port to be connected
+*/
+
+inmdl.Model::connectPlugin(plugin:inmdl.Class){
+  
+  	//stdout.println("\tTrying to connect the rest of the plugin");
+	
+	var connectedDMCs2: Hashtable; 	// operator name vs a list of all DMC names of this operator which are already connected
+	connectedDMCs2 = pluginConnectedDMCs.get(plugin.name);	
+	//stdout.println("\t\tconnectedDMCs2.size = " + connectedDMCs2.size() + " first object = " + connectedDMCs2.keys().first().oclGetType())
+	
+	connectedDMCs2.keys()->forEach(operator:inmdl.Class){
+	   stdout.println("\t\tConnect operator " + operator.name);
+	  	var inputDMCs: List = connectedDMCs2.get(operator);
+	  	var outputDMCs: List;
+	  	
+	  	
+	  	operator.ownedElement->forEach(DMC:inmdl.Port ) {
+	  	  	var inList : Boolean = false;
+	  	  	var inputDMC : Boolean = false;
+	  	  	inputDMCs->forEach(port:inmdl.Port | port = DMC){
+	  	  			inList = true;
+	  	  			inputDMC = true;
+	  	  		}
+	  	  	if (inList = false) {
+	  			// connect all DMCs of the selected operator, which are target of a connector
+	  			var pluginConnectors : List;
+	  			plugin.ownedElement->forEach(con:inmdl.Connector){
+	  			  	pluginConnectors.add(con);
+	  			} 			 
+	  			
+	  			pluginConnectors->forEach(con:inmdl.Connector | con.end.last().role = DMC){
+	  			 	
+	  			 	var port1 :inmdl.Port = con.end.last().role;
+	  			 	self.connectPort(plugin, port1);
+	  			 	inputDMCs.add(port1);
+	  			 	inputDMC = true;
+	  			 	
+	  			}
+	  			if (inputDMC = false) {
+	  			  	outputDMCs.add(DMC);
+	  			}
+	  	  	} //end if port is port of the selected operator and not connected
+	  	} //end for all ports/DMCs of the selected operator
+		// now all input ports of this operator are connected
+		
+		var computeString : String;
+		inputDMCs->forEach(port:inmdl.Port){
+		  	if (computeString = null){
+		  	  	computeString = "new DMC [] {"+operator.name+port.name+"}";
+		  	}else {
+		  		computeString = computeString + "," +"new DMC [] {"+operator.name+port.name+"}";
+		  	}
+		}
+		outputDMCs->forEach(port:inmdl.Port){
+		  	if (computeString = null){
+		  	  	computeString = "new DMC [] {"+operator.name+port.name+"}";
+		  	}else {
+		  		computeString = computeString + "," +"new DMC [] {"+operator.name+port.name+"}";
+		  	}
+		}
+<%	 	 	
+		Op_%>operator.name<%.compute(%>computeString<%);
+%>	
+  	outputDMCs->forEach(port:inmdl.Port){
+  	  	self.connectPort(plugin,port);
+  	}
+  	connectedDMCs2.remove(operator);
+  	pluginConnectedDMCs.put(plugin.name,connectedDMCs2);
+  	} //end for all connected DMCs (operator modelled as class)
+			  
+	connectedDMCs2.keys()->forEach(operator:inmdl.Property){
+	   	stdout.println("\t\tConnect operator " + operator.name);
+	  	var inputDMCs: List = connectedDMCs2.get(operator);
+	  	var outputDMCs: List;
+	  	
+	  	
+	  	operator.ownedElement->forEach(DMC:inmdl.Port ) {
+	  	  	var inList : Boolean = false;
+	  	  	var inputDMC : Boolean = false;
+	  	  	inputDMCs->forEach(port:inmdl.Port | port = DMC){
+	  	  			inList = true;
+	  	  			inputDMC = true;
+	  	  		}
+	  	  	if (inList = false) {
+	  			// connect all DMCs of the selected operator, which are target of a connector
+	  			plugin.ownedElement->forEach(con:inmdl.Connector | con.end.last().role = DMC){
+	  			 	var port1 :inmdl.Port = con.end.last().role;
+	  			 	self.connectPort(plugin, port1);
+	  			 	inputDMCs.add(port1);
+	  			 	inputDMC = true;
+	  			}
+	  			
+	  			if (inputDMC = false) {
+	  			  	outputDMCs.add(DMC);
+	  			}
+	  	  	} //end if port is port of the selected operator and not connected
+	  	} //end for all ports/DMCs of the selected operator
+		// now all input ports of this operator are connected
+		
+		var computeString : String;
+		inputDMCs->forEach(port:inmdl.Port){
+		  	if (computeString = null){
+		  	  	computeString = "new DMC [] {"+operator.name+port.name+"}";
+		  	}else {
+		  		computeString = computeString + "," +"new DMC [] {"+operator.name+port.name+"}";
+		  	}
+		}
+		outputDMCs->forEach(port:inmdl.Port){
+		  	if (computeString = null){
+		  	  	computeString = "new DMC [] {"+operator.name+port.name+"}";
+		  	}else {
+		  		computeString = computeString + "," +"new DMC [] {"+operator.name+port.name+"}";
+		  	}
+		}
+<%	 	 	
+		Op_%>operator.name<%.compute(%>computeString<%);
+%>	
+  	outputDMCs->forEach(port:inmdl.Port){
+  	  	self.connectPort(plugin,port);
+  	}
+  	connectedDMCs2.remove(operator);
+  	pluginConnectedDMCs.put(plugin.name,connectedDMCs2);
+  	} //end for all connected DMCs (operator modelled as part)
+	
+	if (connectedDMCs2.size() = 1 and connectedDMCs2.keys().first() = plugin) {
+		var outputList : List = connectedDMCs.get(plugin);
+		outputList->forEach(port:inmdl.Port){
+<%		
+		final IContextDataset %>plugin.name+port.name<%_contextDataset = Factory.createContextDataset((IContextElement[]) %>plugin.name+port.name<%.getAllValues());
+        contextListener.contextChanged(new ContextChangedEvent(this, %>plugin.name+port.name<%_contextDataset));
+%>				
+		}
+	} else if (pluginConnectedDMCs.get(plugin.name).size()>0){
+		self.connectPlugin(plugin);
+	}
+	
+} //end connect operators within the plugin
+
+
+/**
+ * For a particular parameter setting, the value is passed as a string. This string 
+ * is parsed and the type of the parameter value is retrieved. The return string is 
+ * a modified string including the value string. An example is, for a value string 
+ * �10.0�, it returns �Double (�10.0�), for �true�, it returns �Boolean(�true�)� etc.
+ * 
+ * @param value:String    The value string to be modified
+*/
+  inmdl.Model::getQualifiedValueString(value:String):String{
+    var qualifiedString: String;
+    value = value.trim();
+    if(value.equals("true") or value.equals("false")){
+      qualifiedString = "Boolean("+value+")";
+    } else {
+      var notANumber: Boolean = false;
+      var realNum: Boolean = false;
+      value->forEach(s){
+        if (s == ".") {
+          realNum = true;
+        } // multiple . are not checked
+        if (!(s == "." or s == 0 or s == 1 or s == 2 or s == 3 or s == 4 or s == 5 or s == 6 or s== 7 or s == 8 or s == 9)){ // gt or lt works?
+          notANumber = true;
+        }
+      }
+      if (! notANumber){ // s is a number
+        if (realNum == false){
+          qualifiedString = "new Integer(\""+value+"\")";
+        } else {
+          qualifiedString = "new Double(\""+value+"\")";
+        }
+      } else { // consider it as a string
+        qualifiedString = "new String(\""+value+"\")";
+      }
+    }
+    result = qualifiedString;
+  }
+
+/**
+   * This method creates the manifest file for a context plugin 
+   * 
+   * @param packageName: string with the package name
+   * @param Plugin: class of the contextplugin 
+   */
+  
+  inmdl.Model::createManifestFile(packageName: String, plugin:inmdl.Class){
+<%Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: %>plugin.name<%
+Bundle-SymbolicName: %>plugin.name<%
+Bundle-Version: 1.0.0
+Bundle-ClassPath: .
+Import-Package: org.istmusic.mw.context,
+ org.istmusic.mw.context.events,
+ org.istmusic.mw.context.exceptions,
+ org.istmusic.mw.context.model.api,
+ org.istmusic.mw.context.model.impl,
+ org.istmusic.mw.context.model.impl.values,
+ org.istmusic.mw.context.plugins,
+ org.istmusic.mw.context.util.scheduler,
+ org.istmusic.mw.context.model.exchange,
+ org.istmusic.mw.context.ontologies,
+ org.istmusic.mdd.connectors,
+ org.istmusic.mdd.dmcs,
+ org.istmusic.mdd.operators,
+ org.istmusic.mdd.plugins,
+ org.istmusic.mdd.triggers
+Service-Component: OSGI-INF/%>plugin.name<%.xml
+%>
+  }  
+  
+  
+  /**
+   * This method creates the OSGI XML file for a context plugin 
+   * 
+   * @param packageName: string with the package name
+   * @param Plugin: class of the contextplugin 
+   */
+  
+  inmdl.Model::createXMLFile(packagePath: String, packageName: String, plugin:inmdl.Class){
+<%<?xml version="1.0"?>
+
+<component name="%>plugin.name<%" immediate="true">
+
+    <implementation class="%>packageName<%.%>plugin.name<%"/>
+	
+    <service>
+        <provide interface="org.istmusic.mw.context.plugins.IContextPlugin"/>
+     </service>
+
+</component>
+%>
+  } 
+  
+  /**
+   * This method creates the build file for a context plugin 
+   * 
+   * @param packageName: string with the package name
+   * @param Plugin: class of the contextplugin 
+   */
+  
+  inmdl.Model::createBuildFile(packageName: String, plugin:inmdl.Class){
+<%<project name="%>plugin.name<% Plugin" default="compile" basedir=".">
+
+  <description>
+    Used to generate the JAR-based bundle of the %>plugin.name<% Plugin
+  </description>
+
+  <!-- set global properties for this build -->
+  <property name="build" location="classes"/>
+  <property name="src" location="src"/>
+  <property name="lib" location="lib"/>
+  <property name="dist" location=".."/>
+  <property name="classpath" location="MUSIC_Context_Bundle_2.0.jar;MDD_lib.jar"/> <!-- path to MUSIC CONTEXT bundle -->
+  <property name="resources" location="resources"/>
+
+  <target name="init">
+    <tstamp/>
+    <!-- Create the build directory structure used by compile -->
+    <mkdir dir="${build}"/>
+  </target>
+
+  <target name="compile" depends="init" description="compile the source ">
+    <javac srcdir="${src}" destdir="${build}" verbose="true" classpath="${classpath};${lib}"/>
+  </target>
+
+  <target name="jar" depends="compile" description="generate the %>plugin.name<% plugin bundle" >
+    <jar jarfile="${dist}/%>plugin.name<%.jar" basedir="${build}" manifest="MANIFEST.MF">
+        <fileset dir="${resources}"/>
+    </jar>
+  </target>
+
+</project>
+%>
+  }   
+
+
+} // end texttransformation

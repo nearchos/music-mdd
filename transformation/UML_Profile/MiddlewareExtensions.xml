@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="windows-1252"?>
+<UMLProfile profiletype="uml2">
+	<Documentation id="4425DD4A-7" name="MiddlewareExtensions" version="1.0" notes="MiddlewareExtensions"/>
+	<Content>
+		<Stereotypes>
+			<Stereotype name="mComplexInputDMC" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0" generalizes="mInputDMC"/>
+			<Stereotype name="mContextMediation" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0">
+				<AppliesTo>
+					<Apply type="Note"/>
+				</AppliesTo>
+			</Stereotype>
+			<Stereotype name="mOutputDMC" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0" generalizes="mDMC"/>
+			<Stereotype name="mSimpleInputDMC" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0" generalizes="mInputDMC"/>
+			<Stereotype name="mUserDefinedOperator" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0" generalizes="mContextOperator"/>
+			<Stereotype name="mContextOperator" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0">
+				<AppliesTo>
+					<Apply type="Class"/>
+				</AppliesTo>
+			</Stereotype>
+			<Stereotype name="mContextPlugin" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0">
+				<AppliesTo>
+					<Apply type="Class"/>
+				</AppliesTo>
+			</Stereotype>
+			<Stereotype name="mDMC" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0">
+				<AppliesTo>
+					<Apply type="Class"/>
+					<Apply type="Port"/>
+				</AppliesTo>
+			</Stereotype>
+			<Stereotype name="mGenericOperator" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0" generalizes="mContextOperator"/>
+			<Stereotype name="mInputDMC" notes="" cx="90" cy="70" bgcolor="-1" fontcolor="-1" bordercolor="-1" borderwidth="-1" hideicon="0" generalizes="mDMC"/>
+		</Stereotypes>
+		<TaggedValueTypes/>
+	</Content>
+</UMLProfile>
