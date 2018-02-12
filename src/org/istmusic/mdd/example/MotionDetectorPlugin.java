@@ -44,7 +44,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
 {
 
 	// this field to be constructed automatically by the MDD transformation
-    public static final String PLUGIN_ID = "MotionDetectorPlugin";
+    public static final String PLUGIN_ID = "MddMotionDetectorPlugin";
 
     // this field to be constructed automatically by the MDD transformation
     public static final MotionDetectorPluginMetadata MOTION_DETECTOR_PLUGIN_METADATA =
@@ -132,16 +132,16 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     
     //connector link is annotated with: 
     //#concept.contextscope.abstract.ImageBuffer 
-    //#representation.environment.BufferedImage
+    //#representation:java.awt.Image
     //-> 
-    //#representation.environment.BufferedImage   
+    //#representation:JavaType.ByteArray
     private static class MotionDetectorPlugin_Input_to_ImageComparatorOperator_Input_Mediator{
    
     	public static void mediate(final DMC fromDC, final DMC toDMC){
     		
-    		IContextElement fromElement = (IContextElement) fromDC.get(0);
+    		IContextElement fromElement = (IContextElement) fromDC.get(0).getValue();
     		
-    		BufferedImage toElement = (BufferedImage) fromElement.getContextData().getValue(Factory.createScope("#concept.contextscope.abstract.ImageBuffer")); 
+    		BufferedImage toElement = (BufferedImage) fromElement.getContextData().getValue(Factory.createScope("#concept.contextscope.abstract.ImageBuffer"));
     		
     		try {
     			toDMC.insert(DMCFactory.createDMC_Element(toElement, -1L));
@@ -155,7 +155,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     }
     
     //connector link is annotated with
-    //#representation.environement.Boolean 
+    //#representation.environment.Boolean
     //->
     //#concept.contextscope.abstract.TrueFalseFlag
     //#representation.environment.Boolean
