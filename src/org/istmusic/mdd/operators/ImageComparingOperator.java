@@ -2,8 +2,11 @@ package org.istmusic.mdd.operators;
 
 import org.istmusic.mdd.dmcs.*;
 
+import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.awt.image.Raster;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Computes the difference between two images (inserted in a 2-slot queue DMC of
@@ -25,7 +28,7 @@ public class ImageComparingOperator extends AbstractOperator
 
     /**
      *
-     * @param lowerThreshold if the image difference is abobe this threshold,
+     * @param lowerThreshold if the image difference is above this threshold,
      * then output the result.
      */
     public ImageComparingOperator(final double lowerThreshold)
@@ -72,22 +75,24 @@ public class ImageComparingOperator extends AbstractOperator
             throw new IllegalArgumentException("The output DMC must be of type " + DMC_SingleElement.class);
         }
 
-        // when invoked, it is guaranteed that the input DMC is full
-        final BufferedImage bufferedImage0 = (BufferedImage) inputDMC.get(0).getValue();
-        final BufferedImage bufferedImage1 = (BufferedImage) inputDMC.get(1).getValue();
+        // invoke only when the input DMC is full
+        if(inputDMC.isFull()) {
+            final BufferedImage bufferedImage0 = (BufferedImage) inputDMC.get(0).getValue();
+            final BufferedImage bufferedImage1 = (BufferedImage) inputDMC.get(1).getValue();
 
-        final double result = compareImages(bufferedImage0, bufferedImage1);
+            final double result = compareImages(bufferedImage0, bufferedImage1);
 
-        if(result > this.lowerThreshold)
-        {
-            try
+            if(result > this.lowerThreshold)
             {
-                outputDMC.clear();
-                outputDMC.insert(DMCFactory.createDMC_Element(new Double(result), TIME_TO_LIVE));
-            }
-            catch (DMCFullException e)
-            {
-                throw new RuntimeException(e);
+                try
+                {
+                    outputDMC.clear();
+                    outputDMC.insert(DMCFactory.createDMC_Element(new Double(result), TIME_TO_LIVE));
+                }
+                catch (DMCFullException e)
+                {
+                    throw new RuntimeException(e);
+                }
             }
         }
     }
@@ -133,8 +138,18 @@ public class ImageComparingOperator extends AbstractOperator
             overallDifference += percentageOfDifferenceByBand;
         }
         overallDifference /= numOfBands1;
-
+System.out.println("overallDifference: " + overallDifference); // todo delete
         return overallDifference;
+    }
+
+    static public BufferedImage load(final String filename) {
+        try {
+            final File file = new File(filename);
+System.out.println(file + " exists? " + file.exists()); // todo delete
+            return ImageIO.read(file);
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
+        }
     }
 
     private static double compareRasters(final Raster raster1, final Raster raster2, final int band)

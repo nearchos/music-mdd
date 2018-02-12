@@ -20,6 +20,7 @@ import org.istmusic.mdd.operators.Operator;
 //grounding of some data types
 import org.istmusic.mdd.operators.ImageComparingOperator;
 import java.awt.image.BufferedImage;
+import java.util.Set;
 
 /**
  * A simple example of a plugin. It takes as input context (the Image captured
@@ -98,7 +99,6 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
                         contextElement.getEntity(), contextElement.getScope());
 
                 DMC_Element element = DMCFactory.createDMC_Element(contextElement, -1L);
-
                 DMC curr_DMC = (DMC) entityScopePairToDMCMap.get(entityScopePair);
                 
                 if(curr_DMC != null){
@@ -122,8 +122,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     	Op_ImageComparatorOperator.compute(new DMC[]{ImageComparatorOperator_Input}, ImageComparatorOperator_Output);
     	
     	ImageComparatorOperator_Output_to_MotionDetectorPlugin_Output_Mediator.mediate(ImageComparatorOperator_Output, MotionDetectorPlugin_Output, this);
-    	
-    	
+
         final IContextDataset contextDataset = Factory.createContextDataset((IContextElement[]) MotionDetectorPlugin_Output.getAllValues());
         contextListener.contextChanged(EventFactory.createContextChangedEvent(contextDataset, contextDataset));
 
@@ -140,8 +139,11 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     	public static void mediate(final DMC fromDC, final DMC toDMC){
     		
     		IContextElement fromElement = (IContextElement) fromDC.get(0).getValue();
-    		
-    		BufferedImage toElement = (BufferedImage) fromElement.getContextData().getValue(Factory.createScope("#concept.contextscope.abstract.ImageBuffer"));
+            final IContextData contextData = fromElement.getContextData();
+            final IValue value = contextData.getValue(Factory.createScope("#concept.contextscope.abstract.image_captured"));
+            final String filename = (String) value.getValue();
+
+            BufferedImage toElement = ImageComparingOperator.load(filename);
     		
     		try {
     			toDMC.insert(DMCFactory.createDMC_Element(toElement, -1L));
@@ -162,9 +164,11 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     private static class ImageComparatorOperator_Output_to_MotionDetectorPlugin_Output_Mediator{
     
     	public static void mediate(final DMC fromDC, final DMC toDMC, IContextPlugin plugin){
-    		
-    		Boolean fromElement = ((Boolean) fromDC.get(0).getValue());
-    		
+
+    	    if(fromDC.isEmpty()) return;
+
+    		Boolean fromElement = (Boolean) fromDC.get(0).getValue();
+
     		HashMap valueHashMap = new HashMap();
     		
     		//ToDo: Invoke Factory only once and save result into variables

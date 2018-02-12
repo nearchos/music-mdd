@@ -112,14 +112,16 @@ public class SimulatedContextAccess implements IContextAccess, IContextListener 
     @Override
     public void contextChanged(ContextChangedEvent contextChangedEvent) {
         final IContextElement [] contextElements = contextChangedEvent.getContextElements();
-        for(final IContextElement contextElement : contextElements) {
-            final IEntity entity = contextElement.getEntity();
-            final IScope scope = contextElement.getScope();
-            final EntityScopePair entityScopePair = new EntityScopePair(entity, scope);
+        if(contextElements != null) {
+            for(final IContextElement contextElement : contextElements) {
+                final IEntity entity = contextElement.getEntity();
+                final IScope scope = contextElement.getScope();
+                final EntityScopePair entityScopePair = new EntityScopePair(entity, scope);
 
-            final Vector<IContextListener> contextListeners = contextListenersMap.getOrDefault(entityScopePair, new Vector<>());
-            for(final IContextListener contextListener : contextListeners) {
-                contextListener.contextChanged(contextChangedEvent);
+                final Vector<IContextListener> contextListeners = contextListenersMap.getOrDefault(entityScopePair, new Vector<>());
+                for(final IContextListener contextListener : contextListeners) {
+                    contextListener.contextChanged(contextChangedEvent);
+                }
             }
         }
     }

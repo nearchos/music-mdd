@@ -1,5 +1,7 @@
 package org.istmusic.mdd.dmcs;
 
+import java.util.Date;
+
 /**
  * @author Nearchos Paspallis [npaspallis@uclan.ac.uk]
  */
@@ -39,5 +41,10 @@ public class DMC_Element
         {
             return System.currentTimeMillis() - timeToLive > timestamp;
         }
+    }
+
+    @Override
+    public String toString() {
+        return "value: " + value + ", timestamp: " + new Date(timestamp) + ", timeToLive: " + timeToLive;
     }
 }

@@ -6,6 +6,9 @@ import org.istmusic.mw.context.events.ContextChangedEvent;
 import org.istmusic.mw.context.model.api.IContextDataset;
 import org.istmusic.mdd.operators.ImageComparingOperator;
 
+import javax.imageio.ImageIO;
+import java.io.File;
+import java.io.IOException;
 import java.util.LinkedList;
 import java.awt.image.BufferedImage;
 
@@ -33,7 +36,8 @@ public class SimpleMotionDetectorPlugin extends AbstractContextReasonerPlugin
         // somehow extract the "image" from the input event -- in the generated
         // code this is expected to happen automatically using for example an
         // instance of the ContextToDMC connector
-        final BufferedImage bufferedImage = null;
+        final String filename = null; // todo
+        final BufferedImage bufferedImage = load(filename);
 
         queue.addFirst(bufferedImage);
         // Maintain that the queue has a fixed size of 2 - actually the
@@ -62,6 +66,15 @@ public class SimpleMotionDetectorPlugin extends AbstractContextReasonerPlugin
             final IContextDataset contextDataset = null;
 
             contextListener.contextChanged(EventFactory.createContextChangedEvent(bufferedImage, contextDataset));
+        }
+    }
+
+    private static BufferedImage load(final String filename) {
+        try {
+            System.out.println(new File(".").getAbsolutePath());
+            return ImageIO.read(new File(filename));
+        } catch (IOException ioe) {
+            throw new RuntimeException(ioe);
         }
     }
 }
