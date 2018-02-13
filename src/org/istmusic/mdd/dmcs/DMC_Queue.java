@@ -50,12 +50,16 @@ public class DMC_Queue extends AbstractDMC
 
     synchronized public void insert(DMC_Element element) throws DMCFullException
     {
-        if(isFull())
-        {
-            throw new DMCFullException();
-        }
+//        if(isFull())
+//        {
+//            throw new DMCFullException();
+//        }
 
+        refresh();
         linkedList.addFirst(element);
+        while (linkedList.size() > getSize()) {
+            linkedList.removeLast();
+        }
     }
 
     synchronized public DMC_Element extract() throws DMCEmptyException
@@ -79,8 +83,10 @@ public class DMC_Queue extends AbstractDMC
 
         return element != null && element.isExpired() ? null : element;
     }
-    
- 
-    
-    
+
+
+    @Override
+    public String toString() {
+        return "DMC_Queue: " + linkedList;
+    }
 }

@@ -27,6 +27,7 @@ public class HarnessMDD {
         printPluginInfo(simulatedWebcamPlugin);
         System.out.println("*** PLUG-IN INFO ***");
         printPluginInfo(simpleMotionDetectorPlugin);
+        System.out.println();
 
         simulatedContextAccess.register(simulatedWebcamPlugin);
         simulatedContextAccess.register(simpleMotionDetectorPlugin);

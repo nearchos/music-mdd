@@ -82,7 +82,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     
     //To be generated for event triggered context plugins
     public boolean checkDMCTriggerStatus(){
-    
+
 //    	if(MotionDetectorPlugin_Input.getStatus().contains(DMC.STATUS_NEW_ELEMENT))
 //    		return true;
   
@@ -100,17 +100,15 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
 
                 DMC_Element element = DMCFactory.createDMC_Element(contextElement, -1L);
                 DMC curr_DMC = (DMC) entityScopePairToDMCMap.get(entityScopePair);
-                
+
                 if(curr_DMC != null){
                 	try{
                 		curr_DMC.insert(element);
-                	}
+                    }
                 	catch(Exception e){
-                		
-                		//ToDo: This has to be modified to something that makes sense
+                        //ToDo: This has to be modified to something that makes sense
                 	}
                 }
-                   
             }
     }
     
@@ -137,8 +135,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     private static class MotionDetectorPlugin_Input_to_ImageComparatorOperator_Input_Mediator{
    
     	public static void mediate(final DMC fromDC, final DMC toDMC){
-    		
-    		IContextElement fromElement = (IContextElement) fromDC.get(0).getValue();
+            IContextElement fromElement = (IContextElement) fromDC.get(0).getValue();
             final IContextData contextData = fromElement.getContextData();
             final IValue value = contextData.getValue(Factory.createScope("#concept.contextscope.abstract.image_captured"));
             final String filename = (String) value.getValue();

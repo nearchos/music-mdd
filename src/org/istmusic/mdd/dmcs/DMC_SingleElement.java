@@ -29,11 +29,11 @@ public class DMC_SingleElement extends AbstractDMC
 
     public void insert(DMC_Element element) throws DMCFullException
     {
-        if(isFull())
-        {
-            throw new DMCFullException();
-        }
-
+//        if(isFull())
+//        {
+//            throw new DMCFullException();
+//        }
+//
         this.element = element;
     }
 

@@ -72,10 +72,22 @@ System.out.println("firing: " + currentWebcamFrame); // todo delete
 
     public static final String [] simulatedWebcamFrames = {
             "images/p0.png",
+            "images/p0.png",
+            "images/p0.png",
+            "images/p1.png",
+            "images/p1.png",
             "images/p1.png",
             "images/p2.png",
+            "images/p2.png",
+            "images/p2.png",
+            "images/p3.png",
+            "images/p3.png",
             "images/p3.png",
             "images/p4.png",
+            "images/p4.png",
+            "images/p4.png",
+            "images/p5.png",
+            "images/p5.png",
             "images/p5.png"
     };
 }

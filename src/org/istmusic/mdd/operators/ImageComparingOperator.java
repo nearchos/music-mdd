@@ -24,7 +24,7 @@ public class ImageComparingOperator extends AbstractOperator
 
     public static final long TIME_TO_LIVE = 60L * 1000L; // 1 min
 
-    private double lowerThreshold = 0.2d;
+    private double lowerThreshold = 0.1d;
 
     /**
      *
@@ -145,7 +145,6 @@ System.out.println("overallDifference: " + overallDifference); // todo delete
     static public BufferedImage load(final String filename) {
         try {
             final File file = new File(filename);
-System.out.println(file + " exists? " + file.exists()); // todo delete
             return ImageIO.read(file);
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
