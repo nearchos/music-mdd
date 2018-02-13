@@ -24,7 +24,7 @@ public class ImageComparingOperator extends AbstractOperator
 
     public static final long TIME_TO_LIVE = 60L * 1000L; // 1 min
 
-    private double lowerThreshold = 0.1d;
+    private double lowerThreshold;
 
     /**
      *
@@ -82,17 +82,15 @@ public class ImageComparingOperator extends AbstractOperator
 
             final double result = compareImages(bufferedImage0, bufferedImage1);
 
-            if(result > this.lowerThreshold)
+            try
             {
-                try
-                {
-                    outputDMC.clear();
-                    outputDMC.insert(DMCFactory.createDMC_Element(new Double(result), TIME_TO_LIVE));
-                }
-                catch (DMCFullException e)
-                {
-                    throw new RuntimeException(e);
-                }
+                final Boolean value = result > this.lowerThreshold;
+                outputDMC.clear();
+                outputDMC.insert(DMCFactory.createDMC_Element(value, TIME_TO_LIVE));
+            }
+            catch (DMCFullException e)
+            {
+                throw new RuntimeException(e);
             }
         }
     }

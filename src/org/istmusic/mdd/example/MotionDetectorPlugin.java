@@ -13,6 +13,7 @@ import org.istmusic.mw.context.model.impl.Factory;
 import org.istmusic.mw.context.model.impl.ContextValueMap;
 import org.istmusic.mw.context.model.impl.MetadataMap;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import org.istmusic.mdd.operators.Operator;
 
@@ -55,7 +56,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     protected static final Operator Op_ImageComparatorOperator = new ImageComparingOperator();    
     {
     //parameterize operator	
-    	((ImageComparingOperator) Op_ImageComparatorOperator).setLowerThreshold(0.2d);    
+    	((ImageComparingOperator) Op_ImageComparatorOperator).setLowerThreshold(0.1d);
     }
    
     
@@ -118,11 +119,15 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     	MotionDetectorPlugin_Input_to_ImageComparatorOperator_Input_Mediator.mediate(MotionDetectorPlugin_Input, ImageComparatorOperator_Input);
     	
     	Op_ImageComparatorOperator.compute(new DMC[]{ImageComparatorOperator_Input}, ImageComparatorOperator_Output);
-    	
+System.out.println("ImageComparatorOperator_Output: " + ImageComparatorOperator_Output.toString());
     	ImageComparatorOperator_Output_to_MotionDetectorPlugin_Output_Mediator.mediate(ImageComparatorOperator_Output, MotionDetectorPlugin_Output, this);
 
-        final IContextDataset contextDataset = Factory.createContextDataset((IContextElement[]) MotionDetectorPlugin_Output.getAllValues());
-        contextListener.contextChanged(EventFactory.createContextChangedEvent(contextDataset, contextDataset));
+final DMC_Element dmc_element = MotionDetectorPlugin_Output.get(0);
+System.out.println("MotionDetectorPlugin_Output: " + dmc_element);
+        if(!MotionDetectorPlugin_Output.isEmpty()) {
+            final IContextDataset contextDataset = Factory.createContextDataset((IContextElement) MotionDetectorPlugin_Output.get(0).getValue());
+            contextListener.contextChanged(EventFactory.createContextChangedEvent(contextDataset, contextDataset));
+        }
 
     }
  
@@ -175,6 +180,7 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     				Factory.createValue(fromElement.booleanValue()),
                     (IMetadata) MetadataMap.EMPTY_METADATA_MAP);
 
+System.out.println("contextValue_0: " + contextValue_0.getValue());
 
     		valueHashMap.put(Factory.createScope("#concept.contextscope.abstract.TrueFalseFlag"), contextValue_0);
     		
@@ -188,10 +194,13 @@ public class MotionDetectorPlugin extends MDDContextReasonerPlugin
     				contextValueMap);
     		
     		try {
+//System.out.println("1");//todo
     			toDMC.insert(DMCFactory.createDMC_Element(toElement, -1L));
+//System.out.println("2");
     		}
     		catch(Exception e) {
-    			//ToDo: This has to be reworked with something that makes sense    			
+    			//ToDo: This has to be reworked with something that makes sense
+System.err.println("**ERROR** " + e);
     		}
     		
     	}

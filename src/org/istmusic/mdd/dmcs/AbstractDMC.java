@@ -36,13 +36,4 @@ abstract public class AbstractDMC implements DMC
     {
         return timeToLive;
     }
-    
-    public Object[] getAllValues(){
-        
-    	//ToDo: To be manually implemented
-    	return null;
-    	
-    }
-
-    
 }

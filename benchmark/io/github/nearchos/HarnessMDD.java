@@ -29,6 +29,12 @@ public class HarnessMDD {
         printPluginInfo(simpleMotionDetectorPlugin);
         System.out.println();
 
+//        simulatedContextAccess.addContextListener(todo, SCOPE_TRUE_FALSE_FLAG, new IContextListener() {
+//            @Override
+//            public void contextChanged(ContextChangedEvent contextChangedEvent) {
+//                System.out.println("^^ " + contextChangedEvent);
+//            }
+//        });
         simulatedContextAccess.register(simulatedWebcamPlugin);
         simulatedContextAccess.register(simpleMotionDetectorPlugin);
 

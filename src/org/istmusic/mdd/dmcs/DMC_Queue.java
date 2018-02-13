@@ -84,7 +84,6 @@ public class DMC_Queue extends AbstractDMC
         return element != null && element.isExpired() ? null : element;
     }
 
-
     @Override
     public String toString() {
         return "DMC_Queue: " + linkedList;

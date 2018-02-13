@@ -35,6 +35,7 @@ public class DMC_SingleElement extends AbstractDMC
 //        }
 //
         this.element = element;
+//System.err.println(">>>" + this.element + "<<<");//todo delete
     }
 
     public DMC_Element extract() throws DMCEmptyException
@@ -58,5 +59,10 @@ public class DMC_SingleElement extends AbstractDMC
         }
 
         return element != null && element.isExpired() ? null : element;
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getName() + " " + (isEmpty() ? "Empty" : element.getValue().toString());
     }
 }

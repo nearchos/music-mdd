@@ -68,13 +68,4 @@ public interface DMC
      */
     public DMC_Element get(final int index)
             throws IndexOutOfBoundsException;
-    
-    /**
-     * Method to retrieve all values from the contained DMC_Elements
-     * 
-     * @return Values of all contained DMC_Elements as Array of Objects
-     */
-    public Object[] getAllValues();
-    
-    
 }
