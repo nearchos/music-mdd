@@ -1,4 +1,4 @@
-package org.istmusic.mdd.example;
+package org.istmusic.mdd.example.mdd;
 
 import org.istmusic.mw.context.model.api.IEntity;
 import org.istmusic.mw.context.model.api.IRepresentation;

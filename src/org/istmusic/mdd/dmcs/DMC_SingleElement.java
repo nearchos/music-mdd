@@ -35,7 +35,6 @@ public class DMC_SingleElement extends AbstractDMC
 //        }
 //
         this.element = element;
-//System.err.println(">>>" + this.element + "<<<");//todo delete
     }
 
     public DMC_Element extract() throws DMCEmptyException

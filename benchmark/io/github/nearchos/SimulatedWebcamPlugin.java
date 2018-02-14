@@ -62,7 +62,6 @@ public class SimulatedWebcamPlugin extends AbstractContextPlugin implements Runn
             final IContextDataset contextDataset = Factory.createContextDataset(contextElement);
             final ContextChangedEvent contextChangedEvent = EventFactory.createContextChangedEvent(this, contextDataset);
             fireContextChangedEvent(contextChangedEvent);
-System.out.println("firing: " + currentWebcamFrame); // todo delete
 
             currentPictureIndex = (currentPictureIndex < simulatedWebcamFrames.length - 1) ? currentPictureIndex + 1 : 0;
 

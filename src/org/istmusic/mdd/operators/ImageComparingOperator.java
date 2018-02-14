@@ -136,7 +136,6 @@ public class ImageComparingOperator extends AbstractOperator
             overallDifference += percentageOfDifferenceByBand;
         }
         overallDifference /= numOfBands1;
-System.out.println("overallDifference: " + overallDifference); // todo delete
         return overallDifference;
     }
 
