@@ -8,7 +8,7 @@ import org.istmusic.mw.context.model.api.*;
 import org.istmusic.mw.context.model.impl.Factory;
 import org.istmusic.mw.context.plugins.IContextPlugin;
 
-public class HarnessMDD {
+public class Simulation {
 
     public static final IEntity ENTITY_MOTION_DETECTED = Factory.createEntity("#concept.entitytype.abstract.motion_detected");
 
@@ -18,6 +18,7 @@ public class HarnessMDD {
     public static void main(String[] args) throws Exception {
         final SimulatedContextAccess simulatedContextAccess = new SimulatedContextAccess();
 
+        // create the 3 plug-ins
         final SimulatedWebcamPlugin simulatedWebcamPlugin = new SimulatedWebcamPlugin();
         final MotionDetectorPlugin generatedMotionDetectorPlugin = new MotionDetectorPlugin();
         final PlainMotionDetectorPlugin plainMotionDetectorPlugin = new PlainMotionDetectorPlugin();

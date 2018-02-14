@@ -2,17 +2,19 @@ package org.istmusic.mdd.example.plain;
 
 import org.istmusic.mdd.example.mdd.MotionDetectorPluginMetadata;
 import org.istmusic.mw.context.events.EventFactory;
-import org.istmusic.mw.context.model.api.IContextData;
-import org.istmusic.mw.context.model.api.IContextElement;
-import org.istmusic.mw.context.model.api.IValue;
+import org.istmusic.mw.context.model.api.*;
+import org.istmusic.mw.context.model.impl.ContextDataset;
+import org.istmusic.mw.context.model.impl.ContextValueMap;
 import org.istmusic.mw.context.model.impl.Factory;
+import org.istmusic.mw.context.model.impl.MetadataMap;
 import org.istmusic.mw.context.plugins.AbstractContextReasonerPlugin;
 import org.istmusic.mw.context.events.ContextChangedEvent;
-import org.istmusic.mw.context.model.api.IContextDataset;
 import org.istmusic.mdd.operators.ImageComparingOperator;
 
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.awt.image.BufferedImage;
+import java.util.Map;
 
 /**
  * @author Nearchos Paspallis [npaspallis@uclan.ac.uk]
@@ -29,9 +31,19 @@ public class PlainMotionDetectorPlugin extends AbstractContextReasonerPlugin
         super(PLUGIN_ID, MOTION_DETECTOR_PLUGIN_METADATA);
     }
 
-    public static final double LOWER_THRESHOLD = 0.2d;
+    public static final double LOWER_THRESHOLD = 0.1d;
 
     private final LinkedList queue = new LinkedList();
+
+    private double threshold = LOWER_THRESHOLD;
+
+    public double getThreshold() {
+        return threshold;
+    }
+
+    public void setThreshold(double threshold) {
+        this.threshold = threshold;
+    }
 
     public void contextChanged(ContextChangedEvent event)
     {
@@ -43,7 +55,6 @@ public class PlainMotionDetectorPlugin extends AbstractContextReasonerPlugin
             final IContextData contextData = fromElement.getContextData();
             final IValue value = contextData.getValue(Factory.createScope("#concept.contextscope.abstract.image_captured"));
             final String filename = (String) value.getValue();
-System.out.println("loading: " + filename);
 
             final BufferedImage bufferedImage = ImageComparingOperator.load(filename);
 
@@ -61,15 +72,28 @@ System.out.println("loading: " + filename);
                 final BufferedImage bufferedImage1 = (BufferedImage) queue.get(0);
                 final BufferedImage bufferedImage2 = (BufferedImage) queue.get(1);
 
-                // in the actual MDD-mdd code the access to this method will
-                // be achieved indirectly (via compute()) which is not a static
-                // method anyway (thus we will need an actual instance of the
-                // operator)
+                // in the actual MDD-mdd code, the access to this method is achieved indirectly (via compute()) which
+                // is not a static method anyway (thus need an actual instance of the operator)
                 final double result = ImageComparingOperator.compareImages(bufferedImage1, bufferedImage2);
+                final boolean motionDetected = result > threshold;
 
-                // output the result - in the MDD mdd code, this should happen
-                // automatically via an MDCToContext connector
-                final IContextDataset contextDataset = null;
+                // output the result - in the MDD mdd code, this happens automatically via an MDCToContext connector
+                final Map map = new HashMap();
+                final IContextValue motionDetectedValue = Factory.createContextValue(
+                        Factory.createScope("#concept.contextscope.abstract.TrueFalseFlag"),
+                        Factory.createRepresentation("#representation.environment.Boolean"),
+                        Factory.createValue(motionDetected),
+                        (IMetadata) MetadataMap.EMPTY_METADATA_MAP);
+                map.put(Factory.createScope("#concept.contextscope.abstract.TrueFalseFlag"), motionDetectedValue);
+                final ContextValueMap contextValueMap = Factory.createContextValueMap(map);
+                final IContextElement contextElement = Factory.createContextElement(
+                        PlainMotionDetectorPluginMetadata.Output_MOTION_DETECTED_ENTITY,
+                        PlainMotionDetectorPluginMetadata.Output_MOTION_DETECTED_SCOPE,
+                        PlainMotionDetectorPluginMetadata.Output_MOTION_DETECTED_REPRESENTATION,
+                        this,
+                        contextValueMap
+                );
+                final IContextDataset contextDataset = Factory.createContextDataset(contextElement);
 
                 contextListener.contextChanged(EventFactory.createContextChangedEvent(bufferedImage, contextDataset));
             }
