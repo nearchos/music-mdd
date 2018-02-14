@@ -8,6 +8,8 @@ import org.istmusic.mw.context.model.api.*;
 import org.istmusic.mw.context.model.impl.Factory;
 import org.istmusic.mw.context.plugins.IContextPlugin;
 
+import java.util.Vector;
+
 public class Simulation {
 
     public static final IEntity ENTITY_MOTION_DETECTED = Factory.createEntity("#concept.entitytype.abstract.motion_detected");
@@ -16,45 +18,37 @@ public class Simulation {
     public static final IScope SCOPE_MOTION_DETECTED = Factory.createScope("#concept.contextscope.abstract.motion_detected");
 
     public static void main(String[] args) throws Exception {
+        // provides a simulated harness in place of the context middleware
+        System.out.println("Creating simulated context access (experiment harness)");
         final SimulatedContextAccess simulatedContextAccess = new SimulatedContextAccess();
 
-        // create the 3 plug-ins
-        final SimulatedWebcamPlugin simulatedWebcamPlugin = new SimulatedWebcamPlugin();
-        final MotionDetectorPlugin generatedMotionDetectorPlugin = new MotionDetectorPlugin();
-        final PlainMotionDetectorPlugin plainMotionDetectorPlugin = new PlainMotionDetectorPlugin();
-        System.out.println("*** PLUG-IN INFO (Webcam plugin simulating a camera capture every second) ***");
-        printPluginInfo(simulatedWebcamPlugin);
-        System.out.println("*** PLUG-IN INFO (The MDD-created plug-in processing consecutive camera frames) ***");
-        printPluginInfo(generatedMotionDetectorPlugin);
-        System.out.println("*** PLUG-IN INFO (The equivalent, manually-created plug-in processing consecutive camera frames) ***");
-        printPluginInfo(plainMotionDetectorPlugin);
-        System.out.println();
+        // load the plugins of which the full class name is specified in the args
+        final Vector<IContextPlugin> contextPlugins = new Vector<>();
+        for(final String arg : args) {
+            final Class clazz = Class.forName(arg);
+            final IContextPlugin contextPlugin = (IContextPlugin) clazz.newInstance();
+            contextPlugins.add(contextPlugin);
+            System.out.println("Loading and registering plugin: " + contextPlugin.getID());
+            simulatedContextAccess.register(contextPlugin);
+        }
 
-        simulatedContextAccess.addContextListener(ENTITY_MOTION_DETECTED, SCOPE_MOTION_DETECTED, new IContextListener() {
-            @Override
-            public void contextChanged(ContextChangedEvent contextChangedEvent) {
-                final IContextElement [] contextElements = contextChangedEvent.getContextElements();
-                for(final IContextElement contextElement : contextElements) {
-                    final IContextData contextData = contextElement.getContextData();
-                    final Boolean motionDetected = (Boolean) contextData.getValue(SCOPE_TRUE_FALSE_FLAG).getValue();
-                    System.out.println(contextElement.getSource() + " -> listening ... " + (motionDetected ? "MOTION!" : ""));
-                }
+        // register a dummy listener to receive the events
+        System.out.println("Registering a simulated context listener");
+        simulatedContextAccess.addContextListener(ENTITY_MOTION_DETECTED, SCOPE_MOTION_DETECTED, contextChangedEvent -> {
+            final IContextElement [] contextElements = contextChangedEvent.getContextElements();
+            for(final IContextElement contextElement : contextElements) {
+                final IContextData contextData = contextElement.getContextData();
+                final Boolean motionDetected = (Boolean) contextData.getValue(SCOPE_TRUE_FALSE_FLAG).getValue();
+                System.out.println(contextElement.getSource() + " -> listening ... " + (motionDetected ? "MOTION!" : ""));
             }
         });
-        simulatedContextAccess.register(simulatedWebcamPlugin);
-        simulatedContextAccess.register(generatedMotionDetectorPlugin);
-        simulatedContextAccess.register(plainMotionDetectorPlugin);
 
-        simulatedWebcamPlugin.activate();
-        generatedMotionDetectorPlugin.activate();
-        plainMotionDetectorPlugin.activate();
-    }
+        System.out.println("Starting simulation (activating all plugins)");
 
-    private static void printPluginInfo(IContextPlugin contextPlugin) {
-        System.out.println("Plugin id: " + contextPlugin.getID());
-//        final EntityScopePair [] monitoredEntityScopePairs = contextPlugin.getMetadata().getMonitoredEntityScopePairs();
-//        System.out.println("Monitored EntityScopePairs: " + Arrays.toString(monitoredEntityScopePairs));
-//        final EntityScopePair [] requiredEntityScopePairs = contextPlugin.getMetadata().getRequiredEntityScopePairs();
-//        System.out.println("Required EntityScopePairs: " + Arrays.toString(requiredEntityScopePairs));
+        for(final IContextPlugin contextPlugin : contextPlugins) {
+            contextPlugin.activate();
+        }
+
+        System.out.println();
     }
 }
