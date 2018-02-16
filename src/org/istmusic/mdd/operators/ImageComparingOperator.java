@@ -97,7 +97,7 @@ public class ImageComparingOperator extends AbstractOperator
 
     public static final double PIXEL_RANGE = 255d;
 
-    public static double compareImages(final BufferedImage bufferedImage0, final BufferedImage bufferedImage1)
+    private static double compareImages(final BufferedImage bufferedImage0, final BufferedImage bufferedImage1)
     {
         if(bufferedImage0 == null || bufferedImage1 == null)
         {

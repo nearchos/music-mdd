@@ -1,9 +1,5 @@
 package io.github.nearchos;
 
-import org.istmusic.mdd.example.mdd.MotionDetectorPlugin;
-import org.istmusic.mdd.example.plain.PlainMotionDetectorPlugin;
-import org.istmusic.mw.context.events.ContextChangedEvent;
-import org.istmusic.mw.context.events.IContextListener;
 import org.istmusic.mw.context.model.api.*;
 import org.istmusic.mw.context.model.impl.Factory;
 import org.istmusic.mw.context.plugins.IContextPlugin;

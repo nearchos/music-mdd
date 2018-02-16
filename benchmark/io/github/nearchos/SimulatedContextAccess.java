@@ -15,6 +15,7 @@ import org.istmusic.mw.context.plugins.IContextPlugin;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.Serializable;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
@@ -120,7 +121,11 @@ public class SimulatedContextAccess implements IContextAccess, IContextListener 
 
                 final Vector<IContextListener> contextListeners = contextListenersMap.getOrDefault(entityScopePair, new Vector<>());
                 for(final IContextListener contextListener : contextListeners) {
+System.out.println(new Date() + "firing -> " + contextListener);
+final long start = System.currentTimeMillis();
                     contextListener.contextChanged(contextChangedEvent);
+final long elapsed = System.currentTimeMillis() - start;
+System.out.println(elapsed + " ms -> " + contextListener);
                 }
             }
         }
